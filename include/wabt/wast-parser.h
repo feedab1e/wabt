@@ -21,6 +21,7 @@
 #include <memory>
 #include <optional>
 #include <unordered_map>
+#include <variant>
 
 #include "wabt/error.h"
 #include "wabt/feature.h"
@@ -68,6 +69,10 @@ class WastParser {
     Var name;
     Address size;
   };
+  struct FuncsymAux {
+    std::optional<int> priority;
+  };
+  using SymAux = std::variant<std::monostate, DatasymAux *, FuncsymAux *>;
 
   typedef std::vector<ReferenceVar> ReferenceVars;
 
@@ -217,8 +222,8 @@ class WastParser {
 
   Result ParseSymAfterPar(SymbolCommon*,
                           bool in_import,
-                          DatasymAux* dat_sym = 0);
-  Result ParseSymOpt(SymbolCommon *, bool in_import, DatasymAux *dat_sym = 0);
+                          SymAux dat_sym = {});
+  Result ParseSymOpt(SymbolCommon *, bool in_import, SymAux dat_sym = {});
   Result ParseDataImport(Module* module);
   Result ParseExportDesc(Export*);
   Result ParseInlineExports(ModuleFieldList*, ExternalKind);
@@ -241,12 +246,20 @@ class WastParser {
   Result ParseInstr(ExprList*);
   Result ParseRejectReloc();
   Result ParseUnwindReloc(int curr_indent);
-  Result ParseRelocAfterType(IrReloc*, RelocDataType type);
+  Result ParseRelocAddend(
+      uint32_t* addend,
+      Var* name = nullptr);
   Result ParseRelocModifiers(RelocModifiers*);
   Result ParseRelocKind(RelocKind*);
   Result ParseRelocDataType(RelocDataType*);
-  Result ParseReloc(IrReloc*);
-  Result ParseReloc(IrReloc*, RelocDataType type);
+  Result ParseReloc(bool opt,
+                    IrReloc*,
+                    RelocDataType = RelocDataType::None,
+                    RelocKind = RelocKind::None,
+                    Var* = nullptr,
+                    bool data_default = false,
+                    bool kind_default = false,
+                    bool name_default = false);
   Result ParseCodeMetadataAnnotation(ExprList*);
   Result ParsePlainInstr(std::unique_ptr<Expr>*);
   Result ParseF32(Const*, ConstType type);

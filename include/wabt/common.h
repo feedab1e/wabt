@@ -308,6 +308,7 @@ enum class RelocType {
 };
 
 enum class RelocDataType {
+  None,
   I32, I64,
   LEB, LEB64,
   SLEB, SLEB64,
@@ -350,6 +351,7 @@ constexpr RelocDataType kRelocDataType[] {
 };
 
 enum class RelocKind {
+  None,
   Function,
   FunctionTbl,
   Data,
