@@ -1072,6 +1072,7 @@ void BinaryWriter::WriteLinkingSection() {
   BeginCustomSection(WABT_BINARY_SECTION_LINKING);
   WriteU32Leb128(stream_, 2, "metadata version");
   const std::vector<Symbol>& symbols = symtab_.symbols();
+  int has_init = 0;
   if (symbols.size()) {
     stream_->WriteU8Enum(LinkingEntryType::SymbolTable, "symbol table");
     BeginSubsection("symbol table");
@@ -1085,6 +1086,9 @@ void BinaryWriter::WriteLinkingSection() {
           WriteU32Leb128(stream_, sym.AsFunction().index, "function index");
           if (sym.defined() || sym.explicit_name()) {
             WriteStr(stream_, sym.name(), "function name", PrintChars::Yes);
+          }
+          if (module_->funcs[sym.AsFunction().index]->priority) {
+            ++has_init;
           }
           break;
         case SymbolType::Data:
@@ -1119,6 +1123,24 @@ void BinaryWriter::WriteLinkingSection() {
       }
     }
     EndSubsection();
+
+    if (has_init) {
+      stream_->WriteU8Enum(LinkingEntryType::InitFunctions, "initializsers");
+      BeginSubsection("initializsers");
+      WriteU32Leb128(stream_, has_init, "initializser count");
+      int i = 0;
+      for (const Symbol& sym : symbols) {
+        if (sym.IsFunction()) {
+          auto &prio = module_->funcs[sym.AsFunction().index]->priority;
+          if (prio) {
+            WriteU32Leb128(stream_, *prio, "priority");
+            WriteU32Leb128(stream_, i, "func id");
+          }
+        }
+        ++i;
+      }
+      EndSubsection();
+    }
   }
   EndSection();
 }
