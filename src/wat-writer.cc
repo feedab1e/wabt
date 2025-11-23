@@ -523,6 +523,7 @@ void WatWriter::WriteConst(const ConstExpr& expr) {
       assert(0);
       break;
   }
+  WriteReloc(expr.reloc, false);
 }
 
 template <typename T>
