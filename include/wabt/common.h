@@ -315,6 +315,7 @@ enum class RelocDataType {
 };
 
 constexpr size_t kRelocDataTypeSize[] {
+  0,
   4, 8,
   5, 10,
   5, 10
