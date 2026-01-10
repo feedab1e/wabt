@@ -1368,7 +1368,7 @@ Result WastParser::ParseSymAfterPar(SymbolCommon* sym,
 
   auto validate = [&] {
     if (in_import && (sym->flags_ & uint32_t(SymbolBinding::Local))) {
-      Error(*visibility.second, "static symbol cannot be an import");
+      Error(*binding.second, "static symbol cannot be an import");
     }
     if (std::get_if<DatasymAux *>(&aux)) {
       if (!in_import)
