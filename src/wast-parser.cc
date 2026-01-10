@@ -1677,7 +1677,7 @@ Result WastParser::ParseDataModuleField(Module* module) {
         continue;
       }
       if (tok.text() == "sym") {
-        DataSym sym;
+        DataSym sym{};
         Index sym_idx = module->data_symbols.size();
         DatasymAux aux = {Var{sym_idx, GetLocation()}, 0};
         ParseSymOpt(&sym, false, &aux);
