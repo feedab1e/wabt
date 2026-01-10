@@ -2684,6 +2684,7 @@ Result WastParser::ParseReloc(bool opt,
 
   reloc->type = reloc_type;
   reloc->addend = addend_num;
+  reloc->symbol = sym_name;
 
   return Result::Ok;
 }
