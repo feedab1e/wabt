@@ -1446,9 +1446,9 @@ Result WastParser::ParseSymOpt(SymbolCommon* sym,
 }
 
 Result WastParser::ParseDataImport(Module* module) {
-  DataSym sym;
+  DataSym sym{};
   DatasymAux aux;
-  sym.flags_ |= WABT_SYMBOL_FLAG_UNDEFINED;
+  sym.flags_ = WABT_SYMBOL_FLAG_UNDEFINED;
   if (!IsLparAnn(PeekPair()))
     return Result::Ok;
   Token tok = GetToken();
