@@ -1333,7 +1333,37 @@ bool WastParser::PeekIsDataImport() {
          tokens_.front().text() == "sym.import.data";
 }
 
-Result WastParser::ParseSymAfterPar(SymbolCommon* sym,
+std::optional<std::string> WastParser::ParseSymAttrString(TokenType tag) {
+  if (!MatchLpar(tag))
+    return {};
+  std::optional<std::string> ret(std::in_place);
+  if (ParseQuotedText(&*ret)) {
+    if (Failed(Expect(TokenType::Rpar)))
+      ParseUnwindReloc(1);
+    return ret;
+  }
+  ErrorExpected({"A quoted string"}, "\"foo\"");
+  ParseUnwindReloc(1);
+  ret.reset();
+  return ret;
+}
+
+std::optional<uint64_t> WastParser::ParseSymAttrNumber(TokenType tag) {
+  if (!MatchLpar(tag))
+    return {};
+  std::optional<uint64_t> ret(std::in_place);
+  if (ParseNat(&*ret, true)) {
+    if (Failed(Expect(TokenType::Rpar)))
+      ParseUnwindReloc(1);
+    return ret;
+  }
+  ErrorExpected({"A number"}, "32");
+  ParseUnwindReloc(1);
+  ret.reset();
+  return ret;
+}
+
+Result WastParser::ParseSymOpt(SymbolCommon* sym,
                                     bool in_import,
                                     SymAux aux) {
   using OnceProperty = std::pair<std::string_view, std::optional<Location>>;
@@ -1381,6 +1411,15 @@ Result WastParser::ParseSymAfterPar(SymbolCommon* sym,
       check_unseen(priority);
   };
 
+  sym->flags_ |= in_import ? WABT_SYMBOL_FLAG_UNDEFINED : 0;
+  if (!IsLparAnn(PeekPair()))
+    return Result::Ok;
+  Token tok = GetToken();
+  bool is_data = std::get_if<DatasymAux *>(&aux);
+  if (tok.text() != (is_data && in_import ? "sym.import.data" : "sym"))
+    return Result::Ok;
+  Consume();
+
   if (auto *data = std::get_if<DatasymAux *>(&aux)) {
     ParseVarOpt(&(*data)->name, (*data)->name);
   }
@@ -1389,73 +1428,86 @@ Result WastParser::ParseSymAfterPar(SymbolCommon* sym,
     if (Match(TokenType::Rpar)) {
       validate();
       return Result::Ok;
-    } else if (Match(TokenType::Lpar)) {
-      last_tok_loc = GetLocation();
-      if (MatchText(TokenType::Reserved, "name")) {
-        check_once(name);
-        if (!ParseQuotedText(&sym->name_))
-          goto fail;
-        sym->flags_ |= WABT_SYMBOL_FLAG_EXPLICIT_NAME;
-      } else if (MatchText(TokenType::Reserved, "size")) {
-        check_once(size);
-        Address res;
-        if (!ParseNat(&res, true))
-          goto fail;
-        if (auto *data = std::get_if<DatasymAux *>(&aux))
-          (*data)->size = res;
-      } else if (MatchText(TokenType::Reserved, "init_prio")) {
-        check_once(priority);
-        Address res;
-        if (!ParseNat(&res, true))
-          goto fail;
-        if (auto *data = std::get_if<FuncsymAux *>(&aux))
-          (*data)->priority = res;
-      }
-      fail:
-      if (!Expect(TokenType::Rpar))
-        ParseUnwindReloc(1);
+    }
+    if (auto sym_name = ParseSymAttrString(TokenType::Name)) {
+      check_once(name);
+      sym->name_ = *sym_name;
+      sym->flags_ |= WABT_SYMBOL_FLAG_EXPLICIT_NAME;
+    } else if (auto sym_size = ParseSymAttrNumber(TokenType::Size)) {
+      check_once(size);
+      if (auto *data = std::get_if<DatasymAux *>(&aux))
+        (*data)->size = *sym_size;
+    } else if (auto sym_prio = ParseSymAttrNumber(TokenType::InitPrio)) {
+      check_once(priority);
+      if (auto *data = std::get_if<FuncsymAux *>(&aux))
+        (*data)->priority = *sym_prio;
     } else if (Match(TokenType::Local)) {
       check_once(binding);
       sym->flags_ |= uint32_t(SymbolBinding::Local);
-    } else if (MatchText(TokenType::Reserved, "weak")) {
+    } else if (Match(TokenType::Weak)) {
       check_once(binding);
       sym->flags_ |= uint32_t(SymbolBinding::Weak);
-    } else if (MatchText(TokenType::Reserved, "retain")) {
+    } else if (Match(TokenType::Retain)) {
       check_once(retain);
       sym->flags_ |= WABT_SYMBOL_FLAG_NO_STRIP;
-    } else if (MatchText(TokenType::Reserved, "hidden")) {
+    } else if (Match(TokenType::Hidden)) {
       check_once(visibility);
       sym->flags_ |= uint32_t(SymbolVisibility::Hidden);
     } else {
-      ErrorExpected({"symbol attribute", "')'"});
+      bool do_unwind = PeekMatch(TokenType::Lpar);
+      ErrorExpected({"symbol attribute", "')'"}, "(name \"foo\")");
+      if (do_unwind)
+        ParseUnwindReloc(1);
     }
   }
 }
-
-Result WastParser::ParseSymOpt(SymbolCommon* sym,
-                               bool in_import,
-                               SymAux dat_sym) {
-  sym->flags_ |= in_import ? WABT_SYMBOL_FLAG_UNDEFINED : 0;
+Result WastParser::ParseSymSegment(DataSegment::SymInfo* info) {
   if (!IsLparAnn(PeekPair()))
     return Result::Ok;
   Token tok = GetToken();
   if (tok.text() != "sym")
     return Result::Ok;
   Consume();
-  return ParseSymAfterPar(sym, in_import, dat_sym);
+  Location last_tok_loc = GetLocation();
+  for (;;) {
+    last_tok_loc = GetLocation();
+    using Flags = DataSegment::SymInfo::Flags;
+
+    if (Match(TokenType::Rpar)) break;
+    if (auto name = ParseSymAttrString(TokenType::Name))
+      info->name = *std::move(name);
+    else if (auto align = ParseSymAttrNumber(TokenType::Align)) {
+      for (int i = 0;; ++i) {
+        uint64_t num = 1 << i;
+        if (num < *align)
+          continue;
+        if (num == *align)
+          info->align = i;
+        else
+          Error(last_tok_loc, "Alignment is not a power of 2");
+        break;
+      }
+    }
+    else if (Match(TokenType::Retain))
+      info->flags = Flags(info->flags | Flags::WASM_SEG_FLAG_RETAIN);
+    else if (Match(TokenType::TLS))
+      info->flags = Flags(info->flags | Flags::WASM_SEGMENT_FLAG_TLS);
+    else if (Match(TokenType::Strings))
+      info->flags = Flags(info->flags | Flags::WASM_SEGMENT_FLAG_STRINGS);
+    else {
+      ErrorExpected({"segment attribute"}, "(name \"foo\")");
+      ParseUnwindReloc(1);
+      return Result::Error;
+    }
+  }
+  return Result::Ok;
 }
 
 Result WastParser::ParseDataImport(Module* module) {
   DataSym sym{};
   DatasymAux aux;
   sym.flags_ = WABT_SYMBOL_FLAG_UNDEFINED;
-  if (!IsLparAnn(PeekPair()))
-    return Result::Ok;
-  Token tok = GetToken();
-  if (tok.text() != "sym.import.data")
-    return Result::Ok;
-  Consume();
-  CHECK_RESULT(ParseSymAfterPar(&sym, true, &aux));
+  CHECK_RESULT(ParseSymOpt(&sym, true, &aux));
 
   if (!module->data_symbols.empty()) {
     if (module->data_symbols.back().segment != kInvalidIndex) {
@@ -1642,6 +1694,8 @@ Result WastParser::ParseDataModuleField(Module* module) {
   std::string name;
   ParseBindVarOpt(&name);
   auto field = std::make_unique<DataSegmentModuleField>(loc, name);
+
+  ParseSymSegment(&field->data_segment.sym);
 
   if (PeekMatchLpar(TokenType::Memory)) {
     EXPECT(Lpar);

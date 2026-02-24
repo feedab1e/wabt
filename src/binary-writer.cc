@@ -1073,6 +1073,17 @@ void BinaryWriter::WriteLinkingSection() {
   WriteU32Leb128(stream_, 2, "metadata version");
   const std::vector<Symbol>& symbols = symtab_.symbols();
   int has_init = 0;
+
+  stream_->WriteU8Enum(LinkingEntryType::SegmentInfo, "segments table");
+  BeginSubsection("segment table");
+    WriteU32Leb128(stream_, module_->data_segments.size(), "segment count");
+  for (auto &&seg : module_->data_segments) {
+    WriteStr(stream_, seg->sym.name, "segment name");
+    WriteU32Leb128(stream_, seg->sym.align, "segment align");
+    WriteU32Leb128(stream_, seg->sym.flags, "segment flags");
+  }
+  EndSubsection();
+  
   if (symbols.size()) {
     stream_->WriteU8Enum(LinkingEntryType::SymbolTable, "symbol table");
     BeginSubsection("symbol table");

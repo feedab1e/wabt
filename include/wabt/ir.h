@@ -1065,6 +1065,15 @@ struct DataSegment {
   std::vector<uint8_t> data;
   std::vector<std::pair<Offset, IrReloc>> relocs;
   std::pair<Index, Index> symbol_range = {};
+  struct SymInfo {
+    std::string name = "";
+    Offset align = 0;
+    enum Flags: uint32_t {
+      WASM_SEGMENT_FLAG_STRINGS = 1,
+      WASM_SEGMENT_FLAG_TLS = 2,
+      WASM_SEG_FLAG_RETAIN = 4,
+    } flags = {};
+  } sym;
 };
 
 class Import {

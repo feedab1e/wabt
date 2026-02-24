@@ -220,9 +220,9 @@ class WastParser {
   bool PeekIsCustom();
   bool PeekIsDataImport();
 
-  Result ParseSymAfterPar(SymbolCommon*,
-                          bool in_import,
-                          SymAux dat_sym = {});
+  std::optional<std::string> ParseSymAttrString(TokenType tag);
+  std::optional<uint64_t> ParseSymAttrNumber(TokenType tag);
+  Result ParseSymSegment(DataSegment::SymInfo*);
   Result ParseSymOpt(SymbolCommon *, bool in_import, SymAux dat_sym = {});
   Result ParseDataImport(Module* module);
   Result ParseExportDesc(Export*);

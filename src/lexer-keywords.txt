@@ -19,6 +19,7 @@ struct TokenInfo {
 %%
 array, Type::Array, TokenType::Array
 after, TokenType::After
+align, TokenType::Align
 assert_exception, TokenType::AssertException
 assert_exhaustion, TokenType::AssertExhaustion
 assert_invalid, TokenType::AssertInvalid
@@ -190,6 +191,7 @@ get, TokenType::Get
 global.get, TokenType::GlobalGet, Opcode::GlobalGet
 global.set, TokenType::GlobalSet, Opcode::GlobalSet
 global, TokenType::Global
+hidden, TokenType::Hidden
 i16x8.abs, TokenType::Unary, Opcode::I16X8Abs
 i16x8.add_sat_s, TokenType::Binary, Opcode::I16X8AddSatS
 i16x8.add_sat_u, TokenType::Binary, Opcode::I16X8AddSatU
@@ -534,6 +536,7 @@ i8x16.sub, TokenType::Binary, Opcode::I8X16Sub
 i8x16, TokenType::I8X16
 if, TokenType::If, Opcode::If
 import, TokenType::Import
+init_prio, TokenType::InitPrio
 input, TokenType::Input
 invoke, TokenType::Invoke
 item, TokenType::Item
@@ -555,6 +558,7 @@ module, TokenType::Module
 mut, TokenType::Mut
 nan:arithmetic, TokenType::NanArithmetic
 nan:canonical, TokenType::NanCanonical
+name, TokenType::Name
 nop, TokenType::Nop, Opcode::Nop
 offset, TokenType::Offset
 output, TokenType::Output
@@ -568,13 +572,16 @@ ref.is_null, TokenType::RefIsNull, Opcode::RefIsNull
 ref.null, TokenType::RefNull, Opcode::RefNull
 register, TokenType::Register
 result, TokenType::Result
+retain, TokenType::Retain
 rethrow, TokenType::Rethrow, Opcode::Rethrow
 return_call_indirect, TokenType::ReturnCallIndirect, Opcode::ReturnCallIndirect
 return_call, TokenType::ReturnCall, Opcode::ReturnCall
 return, TokenType::Return, Opcode::Return
 select, TokenType::Select, Opcode::Select
 shared, TokenType::Shared
+size, TokenType::Size
 start, TokenType::Start
+strings, TokenType::Strings
 struct, Type::Struct, TokenType::Struct
 table.copy, TokenType::TableCopy, Opcode::TableCopy
 table.fill, TokenType::TableFill, Opcode::TableFill
@@ -587,10 +594,12 @@ table, TokenType::Table
 then, TokenType::Then
 throw, TokenType::Throw, Opcode::Throw
 throw_ref, TokenType::ThrowRef, Opcode::ThrowRef
+tls, TokenType::TLS
 try, TokenType::Try, Opcode::Try
 try_table, TokenType::TryTable, Opcode::TryTable
 type, TokenType::Type
 unreachable, TokenType::Unreachable, Opcode::Unreachable
+weak, TokenType::Weak
 v128.andnot, TokenType::Binary, Opcode::V128Andnot
 v128.and, TokenType::Binary, Opcode::V128And
 v128.bitselect, TokenType::Ternary, Opcode::V128BitSelect
